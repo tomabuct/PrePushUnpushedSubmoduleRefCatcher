@@ -1,0 +1,16 @@
+#!/bin/bash
+# Installs the hook
+
+HOOK_DIR="."
+REPO_DIR=$(git rev-parse --show-toplevel)
+INSTALL_DIR="$REPO_DIR/.git/hooks"
+
+# returns path of hook relative to INSTALL_DIR
+function hook_rel_path {
+  echo $(python -c "import os.path; print os.path.relpath('$HOOK_DIR/$1', '$INSTALL_DIR')")
+}
+
+# make symlink using relative path so they don't break when repo is moved
+ln -sf "$(hook_rel_path "pre-push")" $INSTALL_DIR
+
+echo "Installed hook in $INSTALL_DIR"

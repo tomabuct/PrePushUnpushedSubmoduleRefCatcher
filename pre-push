@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Before pushing to master, verifies that all submodule refs have been pushed.
+
+# Called by "git push" after it has checked the remote status, but before
+# anything has been pushed. If this script exits with a non-zero status
+# nothing will be pushed. This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+
+remote="$1"
+url="$2"
+
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local sha1> <remote ref> <remote sha1>
+
+# if the push command itself involves recurse-submodules, we aren't needed
+push_command=$(ps -ocommand= -p $PPID)
+if [[ $push_command =~ "recurse-submodules" ]]; then exit 0; fi
+
+while read local_ref local_sha remote_ref remote_sha; do
+  # we only care if pushing to remote/master
+  if [ $remote_ref != "refs/heads/master" ]; then continue; fi
+
+  echo "Verifying that submodule refs have been pushed for $remote_ref... "
+
+  # check if all submodule refs have been pushed
+  #   recurse-submodules=check:   makes sure all submodule refs has been pushed
+  #   dry-run:                    doesn't actually do the push
+  #   no-verify:                  prevents the pre-push hook from running (recursively)
+  #   quiet:                      don't print to STDOUT (still prints to STDERR)
+  git push $remote $local_ref:$remote_ref \
+    --recurse-submodules=check \
+    --dry-run \
+    --no-verify \
+    --quiet
+
+  result=$?
+
+  # if any submodule refs haven't been pushed, prevent push
+  if [ $result -eq 0 ]; then
+    echo -e "OK\n"
+  else
+    exit $result
+  fi
+done
+
+exit 0
